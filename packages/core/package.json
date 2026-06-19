@@ -27,7 +27,8 @@
     "./client": "./build/client/index.js",
     "./types": "./build/client/types/index.js",
     "./commands": "./build/commands/main.js",
-    "./hooks": "./build/backend/generate_registry.js"
+    "./hooks": "./build/backend/generate_registry.js",
+    "./config": "./build/backend/config.js"
   },
   "files": [
     "build"
@@ -94,6 +95,8 @@
   "tsup": {
     "entry": [
       "./src/backend/generate_registry.ts",
+      "./src/backend/config.ts",
+      "./src/commands/tuyau_generate.ts",
       "./src/client/index.ts",
       "./src/client/types/index.ts"
     ],
