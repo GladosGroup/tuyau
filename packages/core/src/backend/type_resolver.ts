@@ -101,7 +101,8 @@ export class RegistryTypeResolver {
     if (!this.#available) return false
 
     try {
-      this.#ts = (await import('typescript')).default ?? (await import('typescript'))
+      const tsModule = await import('typescript')
+      this.#ts = tsModule.default ?? tsModule
     } catch {
       this.#available = false
       return false
