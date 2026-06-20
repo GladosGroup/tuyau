@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'node:fs/promises'
 import stringHelpers from '@adonisjs/core/helpers/string'
 import type { ScannedRoute, RoutesListItem } from '@adonisjs/assembler/types'
 import { GenerateRegistryConfig } from './types.ts'
+import type { ResolvableRoute, ResolvedFields, RouteExpressions } from './type_resolver.ts'
 
 const DEFAULT_VALIDATION_ERROR_TYPE = '{ errors: SimpleError[] }'
 
@@ -221,10 +222,11 @@ export class RegistryGenerator {
   }
 
   /**
-   * Generate a single type-level registry entry for a route
-   * (body, query, params, response, and error response types).
+   * Build the raw inference expression strings for every type field of a route.
+   * These are the un-resolved expressions (e.g. `ExtractResponse<Awaited<…>>`)
+   * that are either emitted as-is or fed to the type resolver to be flattened.
    */
-  generateTypesRegistryEntry(route: ScannedRoute): string {
+  #buildFieldExpressions(route: ScannedRoute) {
     const requestType = this.#normalizeImportPaths(route.request?.type || '{}')
     const rawResponseType = route.response?.type || 'unknown'
     const responseType = this.#wrapResponseType(rawResponseType)
@@ -241,23 +243,64 @@ export class RegistryGenerator {
     }
 
     const { paramsType, paramsTuple } = this.#generateRouteParams(route)
-    const routeName = route.name
-
     const { bodyType, queryType } = this.#determineBodyAndQueryTypes({
       methods: route.methods,
       requestType,
     })
 
+    return { bodyType, queryType, paramsType, paramsTuple, responseType, errorResponseType }
+  }
+
+  /**
+   * Collect the non-trivial type expressions per route, to be handed to the
+   * `RegistryTypeResolver`. Trivial fields (`{}` / `unknown`) are omitted since
+   * they need no resolution. Routes with nothing to resolve are dropped.
+   */
+  collectResolvable(routes: ScannedRoute[]): ResolvableRoute[] {
+    return routes
+      .map((route) => {
+        const e = this.#buildFieldExpressions(route)
+        const expressions: RouteExpressions = {}
+
+        if (e.bodyType !== '{}') expressions.body = e.bodyType
+        if (e.queryType !== '{}') expressions.query = e.queryType
+        if (e.responseType !== 'unknown' && e.responseType !== '{}')
+          expressions.response = e.responseType
+        if (e.errorResponseType !== 'unknown' && e.errorResponseType !== '{}')
+          expressions.errorResponse = e.errorResponseType
+
+        return { name: route.name, expressions }
+      })
+      .filter((r) => Object.keys(r.expressions).length > 0)
+  }
+
+  /**
+   * Generate a single type-level registry entry for a route
+   * (body, query, params, response, and error response types).
+   *
+   * When a `resolved` map is provided, the pre-flattened type strings are used
+   * instead of the raw inference expressions; any field missing from the map
+   * falls back to its inference expression.
+   */
+  generateTypesRegistryEntry(route: ScannedRoute, resolved?: ResolvedFields): string {
+    const e = this.#buildFieldExpressions(route)
+    const routeName = route.name
+
+    const body = resolved?.body ?? e.bodyType
+    const query = resolved?.query ?? e.queryType
+    const response = resolved?.response ?? e.responseType
+    const errorResponse = resolved?.errorResponse ?? e.errorResponseType
+
     return `  '${routeName}': {
     methods: ${JSON.stringify(route.methods)}
     pattern: '${route.pattern}'
     types: {
-      body: ${bodyType}
-      paramsTuple: [${paramsTuple}]
-      params: ${paramsType ? `{ ${paramsType} }` : '{}'}
-      query: ${queryType}
-      response: ${responseType}
-      errorResponse: ${errorResponseType}
+      body: ${body}
+      paramsTuple: [${e.paramsTuple}]
+      params: ${e.paramsType ? `{ ${e.paramsType} }` : '{}'}
+      query: ${query}
+      response: ${response}
+      errorResponse: ${errorResponse}
     }
   }`
   }
@@ -301,27 +344,42 @@ declare module '@tuyau/core/types' {
   /**
    * Generate the types-only registry file (`schema.d.ts`)
    * with request/response type definitions for each route.
+   *
+   * When `resolved` is provided, fully-flattened type strings are emitted and
+   * the `@tuyau/core/types` / `@vinejs/vine` helper imports are only included if
+   * some field still falls back to a raw inference expression.
    */
-  generateTypesContent(routes: ScannedRoute[]): string {
-    const registryEntries = routes.map((route) => this.generateTypesRegistryEntry(route)).join('\n')
+  generateTypesContent(routes: ScannedRoute[], resolved?: Map<string, ResolvedFields>): string {
+    const registryEntries = routes
+      .map((route) => this.generateTypesRegistryEntry(route, resolved?.get(route.name)))
+      .join('\n')
 
-    const useDefaultValidationType = this.#validationErrorType === DEFAULT_VALIDATION_ERROR_TYPE
-    const coreImports = [
-      'ExtractBody',
-      'ExtractErrorResponse',
-      'ExtractQuery',
-      'ExtractQueryForGet',
-      'ExtractResponse',
+    /**
+     * Only emit helper imports that are actually referenced. With resolved types
+     * the body is fully structural and usually needs none of them.
+     */
+    const coreImports = (
+      ['ExtractBody', 'ExtractErrorResponse', 'ExtractQuery', 'ExtractQueryForGet', 'ExtractResponse'] as const
+    ).filter((name) => new RegExp(`\\b${name}\\b`).test(registryEntries))
+
+    const vineImports = (['InferInput', 'SimpleError'] as const).filter((name) =>
+      new RegExp(`\\b${name}\\b`).test(registryEntries),
+    )
+
+    const importLines = [
+      coreImports.length
+        ? `import type { ${coreImports.join(', ')} } from '@tuyau/core/types'`
+        : '',
+      vineImports.length
+        ? `import type { ${vineImports.join(', ')} } from '@vinejs/vine/types'`
+        : '',
     ]
-    const vineImports = ['InferInput']
-    if (useDefaultValidationType) vineImports.push('SimpleError')
+      .filter(Boolean)
+      .join('\n')
 
     return `/* eslint-disable prettier/prettier */
 /// <reference path="../manifest.d.ts" />
-
-import type { ${coreImports.join(', ')} } from '@tuyau/core/types'
-import type { ${vineImports.join(', ')} } from '@vinejs/vine/types'
-
+${importLines ? `\n${importLines}\n` : ''}
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
@@ -360,10 +418,13 @@ ${treeInterface}
    * Generate all three registry files at once.
    * Returns the content strings without writing to disk.
    */
-  generate(routes: ScannedRoute[]): { runtime: string; types: string; tree: string } {
+  generate(
+    routes: ScannedRoute[],
+    resolved?: Map<string, ResolvedFields>,
+  ): { runtime: string; types: string; tree: string } {
     return {
       runtime: this.generateRuntimeContent(routes),
-      types: this.generateTypesContent(routes),
+      types: this.generateTypesContent(routes, resolved),
       tree: this.generateTreeContent(routes),
     }
   }
@@ -372,8 +433,12 @@ ${treeInterface}
    * Generate and write all registry files (index.ts, schema.d.ts, tree.d.ts)
    * to the given output directory.
    */
-  async writeOutput(options: { outputDir: string; routes: ScannedRoute[] }) {
-    const result = this.generate(options.routes)
+  async writeOutput(options: {
+    outputDir: string
+    routes: ScannedRoute[]
+    resolved?: Map<string, ResolvedFields>
+  }) {
+    const result = this.generate(options.routes, options.resolved)
     const dir = options.outputDir.replace(/\/$/, '')
 
     await Promise.all([

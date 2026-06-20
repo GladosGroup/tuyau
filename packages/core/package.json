@@ -27,7 +27,8 @@
     "./client": "./build/client/index.js",
     "./types": "./build/client/types/index.js",
     "./commands": "./build/commands/main.js",
-    "./hooks": "./build/backend/generate_registry.js"
+    "./hooks": "./build/backend/generate_registry.js",
+    "./config": "./build/backend/config.js"
   },
   "files": [
     "build"
@@ -50,13 +51,17 @@
   },
   "peerDependencies": {
     "@adonisjs/assembler": "^8.0.0-next.27",
-    "@adonisjs/core": "^7.0.0-next.16"
+    "@adonisjs/core": "^7.0.0-next.16",
+    "typescript": "^5.0.0"
   },
   "peerDependenciesMeta": {
     "@adonisjs/assembler": {
       "optional": true
     },
     "@adonisjs/core": {
+      "optional": true
+    },
+    "typescript": {
       "optional": true
     }
   },
@@ -90,6 +95,8 @@
   "tsup": {
     "entry": [
       "./src/backend/generate_registry.ts",
+      "./src/backend/config.ts",
+      "./src/commands/tuyau_generate.ts",
       "./src/client/index.ts",
       "./src/client/types/index.ts"
     ],
