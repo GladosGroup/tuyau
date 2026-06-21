@@ -1,109 +1,109 @@
 {
-  "name": "@tuyau/core",
-  "type": "module",
-  "version": "1.2.2",
-  "description": "E2E typesafe client for AdonisJS",
-  "author": "Julien Ripouteau <julien@ripouteau.com>",
-  "license": "MIT",
-  "homepage": "https://github.com/Julien-R44/tuyau#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Julien-R44/tuyau.git",
-    "directory": "packages/core"
-  },
-  "bugs": {
-    "url": "https://github.com/Julien-R44/tuyau/issues"
-  },
-  "keywords": [
-    "adonisjs",
-    "typescript",
-    "typesafe",
-    "api",
-    "rpc",
-    "client",
-    "e2e"
-  ],
-  "exports": {
-    "./client": "./build/client/index.js",
-    "./types": "./build/client/types/index.js",
-    "./commands": "./build/commands/main.js",
-    "./hooks": "./build/backend/generate_registry.js",
-    "./config": "./build/backend/config.js"
-  },
-  "files": [
-    "build"
-  ],
-  "engines": {
-    "node": ">=24.0.0"
-  },
-  "scripts": {
-    "clean": "del-cli build",
-    "copy:templates": "copyfiles --up 1 \"stubs/**/*.stub\" build",
-    "typecheck": "tsc --noEmit",
-    "format": "oxfmt --write .",
-    "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts --force-exit",
-    "test": "c8 npm run quick:test",
-    "index:commands": "adonis-kit index build/commands",
-    "prebuild": "npm run clean",
-    "build": "pnpm clean && tsup-node && pnpm copy:templates && pnpm index:commands",
-    "version": "npm run build",
-    "prepublishOnly": "npm run build"
-  },
-  "peerDependencies": {
-    "@adonisjs/assembler": "^8.0.0-next.27",
-    "@adonisjs/core": "^7.0.0-next.16",
-    "typescript": "^5.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@adonisjs/assembler": {
-      "optional": true
-    },
-    "@adonisjs/core": {
-      "optional": true
-    },
-    "typescript": {
-      "optional": true
-    }
-  },
-  "dependencies": {
-    "ky": "^1.14.3",
-    "object-to-formdata": "^4.5.1"
-  },
-  "devDependencies": {
-    "@adonisjs/assembler": "^8.0.1",
-    "@adonisjs/core": "^7.0.1",
-    "@adonisjs/http-server": "^8.0.0",
-    "@faker-js/faker": "^10.3.0",
-    "@poppinss/ts-exec": "^1.4.4",
-    "@types/node": "^25.5.0",
-    "@typescript/analyze-trace": "^0.10.1",
-    "@vinejs/vine": "^4.3.0"
-  },
-  "publishConfig": {
-    "access": "public",
-    "tag": "latest"
-  },
-  "c8": {
-    "reporter": [
-      "text",
-      "html"
-    ],
-    "exclude": [
-      "tests/**"
-    ]
-  },
-  "tsup": {
-    "entry": [
-      "./src/backend/generate_registry.ts",
-      "./src/backend/config.ts",
-      "./src/commands/tuyau_generate.ts",
-      "./src/client/index.ts",
-      "./src/client/types/index.ts"
-    ],
-    "outDir": "./build",
-    "clean": false,
-    "format": "esm",
-    "dts": true,
-    "target": "esnext"
-  }
+	"name": "@gtuyau/core",
+	"type": "module",
+	"version": "1.2.3",
+	"description": "E2E typesafe client for AdonisJS",
+	"author": "Julien Ripouteau <julien@ripouteau.com>",
+	"license": "MIT",
+	"homepage": "https://github.com/Julien-R44/tuyau#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Julien-R44/tuyau.git",
+		"directory": "packages/core"
+	},
+	"bugs": {
+		"url": "https://github.com/Julien-R44/tuyau/issues"
+	},
+	"keywords": [
+		"adonisjs",
+		"typescript",
+		"typesafe",
+		"api",
+		"rpc",
+		"client",
+		"e2e"
+	],
+	"exports": {
+		"./client": "./build/client/index.js",
+		"./types": "./build/client/types/index.js",
+		"./commands": "./build/commands/main.js",
+		"./hooks": "./build/backend/generate_registry.js",
+		"./config": "./build/backend/config.js"
+	},
+	"files": [
+		"build"
+	],
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"scripts": {
+		"clean": "del-cli build",
+		"copy:templates": "copyfiles --up 1 \"stubs/**/*.stub\" build",
+		"typecheck": "tsc --noEmit",
+		"format": "oxfmt --write .",
+		"quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts --force-exit",
+		"test": "c8 npm run quick:test",
+		"index:commands": "adonis-kit index build/commands",
+		"prebuild": "npm run clean",
+		"build": "pnpm clean && tsup-node && pnpm copy:templates && pnpm index:commands",
+		"version": "npm run build",
+		"prepublishOnly": "npm run build"
+	},
+	"peerDependencies": {
+		"@adonisjs/assembler": "^8.0.0-next.27",
+		"@adonisjs/core": "^7.0.0-next.16",
+		"typescript": "^5.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@adonisjs/assembler": {
+			"optional": true
+		},
+		"@adonisjs/core": {
+			"optional": true
+		},
+		"typescript": {
+			"optional": true
+		}
+	},
+	"dependencies": {
+		"ky": "^1.14.3",
+		"object-to-formdata": "^4.5.1"
+	},
+	"devDependencies": {
+		"@adonisjs/assembler": "^8.0.1",
+		"@adonisjs/core": "^7.0.1",
+		"@adonisjs/http-server": "^8.0.0",
+		"@faker-js/faker": "^10.3.0",
+		"@poppinss/ts-exec": "^1.4.4",
+		"@types/node": "^25.5.0",
+		"@typescript/analyze-trace": "^0.10.1",
+		"@vinejs/vine": "^4.3.0"
+	},
+	"publishConfig": {
+		"access": "public",
+		"tag": "latest"
+	},
+	"c8": {
+		"reporter": [
+			"text",
+			"html"
+		],
+		"exclude": [
+			"tests/**"
+		]
+	},
+	"tsup": {
+		"entry": [
+			"./src/backend/generate_registry.ts",
+			"./src/backend/config.ts",
+			"./src/commands/tuyau_generate.ts",
+			"./src/client/index.ts",
+			"./src/client/types/index.ts"
+		],
+		"outDir": "./build",
+		"clean": false,
+		"format": "esm",
+		"dts": true,
+		"target": "esnext"
+	}
 }
