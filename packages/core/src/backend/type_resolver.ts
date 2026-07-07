@@ -28,7 +28,7 @@ type FieldKey = (typeof FIELD_KEYS)[number]
  * Bump whenever the resolution logic (RESOLVE_HELPER, cleanup, depth…) changes,
  * so previously persisted disk caches are discarded instead of serving stale output.
  */
-const CACHE_VERSION = 4
+const CACHE_VERSION = 5
 
 /**
  * Deep "prettify" type used to force TypeScript to fully expand a type into a
@@ -420,7 +420,69 @@ export class RegistryTypeResolver {
    * the backend's TS path (which consumers no longer include).
    */
   #cleanup(str: string): string {
-    return this.#simplifyAny(this.#portableGlobals(this.#replaceBackendImports(str)))
+    return this.#sortObjectMembers(
+      this.#simplifyAny(this.#portableGlobals(this.#replaceBackendImports(str))),
+    )
+  }
+
+  /**
+   * Deterministically order the members of every object-type literal alphabetically
+   * by property name. TypeScript's `typeToString` does not guarantee a stable member
+   * order across program builds, so an otherwise-unchanged type could be printed with
+   * its fields in a different order on each regeneration — producing spurious diffs in
+   * the emitted `schema.d.ts`. Parsing the printed type and re-stitching it from the
+   * AST reorders only object members (unions, tuples, mapped types and signature
+   * internals are left untouched) while preserving the original formatting. On any
+   * parse failure the input is returned unchanged.
+   */
+  #sortObjectMembers(str: string): string {
+    const ts = this.#ts
+    if (!ts) return str
+
+    try {
+      const src = `type __T = ${str}`
+      const sf = ts.createSourceFile('__tuyau_sort.ts', src, ts.ScriptTarget.Latest, true)
+      const stmt = sf.statements[0]
+      if (!stmt || !ts.isTypeAliasDeclaration(stmt)) return str
+
+      const keyOf = (m: TS.TypeElement): string => {
+        const name = (m as { name?: TS.PropertyName }).name
+        if (name) {
+          if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name))
+            return name.text
+          return name.getText(sf)
+        }
+        // Signatures without a name (index/call/construct) sort after named members,
+        // ordered by their own text so the result stays stable.
+        return '￿' + m.getText(sf)
+      }
+
+      const emit = (node: TS.Node): string => {
+        if (ts.isTypeLiteralNode(node)) {
+          if (node.members.length === 0) return '{}'
+          const sorted = [...node.members].sort((a, b) => {
+            const ka = keyOf(a)
+            const kb = keyOf(b)
+            return ka < kb ? -1 : ka > kb ? 1 : 0
+          })
+          // Each member's text includes its trailing `;`; strip it before re-joining.
+          return '{ ' + sorted.map((m) => emit(m).replace(/;\s*$/, '')).join('; ') + ' }'
+        }
+
+        let out = ''
+        let cursor = node.getStart(sf)
+        node.forEachChild((child) => {
+          out += src.slice(cursor, child.getStart(sf)) + emit(child)
+          cursor = child.getEnd()
+        })
+        out += src.slice(cursor, node.getEnd())
+        return out
+      }
+
+      return emit(stmt.type)
+    } catch {
+      return str
+    }
   }
 
   /**
