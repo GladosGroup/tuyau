@@ -2,3 +2,10 @@ packages:
   - packages/*
   - playgrounds/*
   - docs
+
+overrides:
+  # jsonschema 1.5.0 swapped url.parse() for WHATWG `new URL()` and now throws
+  # "Invalid URL" on a schema whose $ref is a bare fragment, which is exactly the
+  # shape @adonisjs/ace validates command metadata against. It breaks
+  # `adonis-kit index build/commands` (the last step of the core build).
+  jsonschema: 1.4.1

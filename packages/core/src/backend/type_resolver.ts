@@ -28,7 +28,7 @@ type FieldKey = (typeof FIELD_KEYS)[number]
  * Bump whenever the resolution logic (RESOLVE_HELPER, cleanup, depth…) changes,
  * so previously persisted disk caches are discarded instead of serving stale output.
  */
-const CACHE_VERSION = 5
+const CACHE_VERSION = 6
 
 /**
  * Deep "prettify" type used to force TypeScript to fully expand a type into a

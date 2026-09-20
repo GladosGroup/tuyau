@@ -52,7 +52,7 @@
   "devDependencies": {
     "@adonisjs/assembler": "^8.0.1",
     "@adonisjs/core": "^7.0.1",
-    "@tuyau/core": "workspace:*",
+    "@tuyau/core": "workspace:@gtuyau/core@*",
     "nock": "^14.0.11"
   },
   "publishConfig": {

@@ -12,6 +12,7 @@ import type {
   ExtractResponse,
   PathWithRegistry,
   RouteWithRegistry,
+  TuyauUploadable,
 } from '../src/client/types/types.ts'
 
 const routes = registry.routes
@@ -925,25 +926,44 @@ test.group('ExtractQuery and ExtractBody types', (group) => {
     }>()
   })
 
-  test('ExtractBody replaces MultipartFile with File | Blob', ({ expectTypeOf }) => {
+  test('ExtractBody replaces MultipartFile with TuyauUploadable', ({ expectTypeOf }) => {
     type WithFile = { avatar: { isMultipartFile: true; fieldName: string; size: number }; name: string }
 
     type Result = ExtractBody<WithFile>
-    expectTypeOf<Result>().toEqualTypeOf<{ avatar: File | Blob; name: string }>()
+    expectTypeOf<Result>().toEqualTypeOf<{ avatar: TuyauUploadable; name: string }>()
   })
 
-  test('ExtractBody replaces MultipartFile array with (File | Blob) array', ({ expectTypeOf }) => {
+  test('ExtractBody replaces MultipartFile array with TuyauUploadable array', ({ expectTypeOf }) => {
     type WithFiles = { documents: { isMultipartFile: true; fieldName: string }[]; title: string }
 
     type Result = ExtractBody<WithFiles>
-    expectTypeOf<Result>().toEqualTypeOf<{ documents: (File | Blob)[]; title: string }>()
+    expectTypeOf<Result>().toEqualTypeOf<{ documents: TuyauUploadable[]; title: string }>()
   })
 
-  test('ExtractBody replaces optional MultipartFile with optional File | Blob', ({ expectTypeOf }) => {
+  test('ExtractBody replaces optional MultipartFile with optional TuyauUploadable', ({ expectTypeOf }) => {
     type WithOptionalFile = { avatar?: { isMultipartFile: true; fieldName: string }; name: string }
 
     type Result = ExtractBody<WithOptionalFile>
-    expectTypeOf<Result>().toEqualTypeOf<{ avatar?: File | Blob; name: string }>()
+    expectTypeOf<Result>().toEqualTypeOf<{ avatar?: TuyauUploadable; name: string }>()
+  })
+
+  test('ExtractBody collapses the whole MultipartFile | File | Blob union', ({ expectTypeOf }) => {
+    type WithFile = { avatar: { isMultipartFile: true; fieldName: string } | File | Blob; name: string }
+
+    type Result = ExtractBody<WithFile>
+    expectTypeOf<Result>().toEqualTypeOf<{ avatar: TuyauUploadable; name: string }>()
+  })
+
+  test('TuyauUploadable accepts File and Blob whichever lib declares them', ({ expectTypeOf }) => {
+    expectTypeOf<File>().toExtend<TuyauUploadable>()
+    expectTypeOf<Blob>().toExtend<TuyauUploadable>()
+
+    // A lib that grows a member must stay assignable: this is what `File | Blob`
+    // could not guarantee once the resolver expanded it structurally.
+    type GrownFile = File & { textStream: () => ReadableStream<string> }
+    expectTypeOf<GrownFile>().toExtend<TuyauUploadable>()
+
+    expectTypeOf<{ size: number; type: string }>().not.toExtend<TuyauUploadable>()
   })
 
   test('ExtractBody does not affect non-file types', ({ expectTypeOf }) => {

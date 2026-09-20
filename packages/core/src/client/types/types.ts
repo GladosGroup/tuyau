@@ -76,22 +76,47 @@ export type ExtractQuery<T> = 'query' extends keyof T
 export type ExtractQueryForGet<T> = DistributiveOmit<T, 'headers' | 'cookies' | 'params'>
 
 /**
- * Recursively replaces AdonisJS MultipartFile types with the DOM File type.
+ * Minimal structural shape of an uploadable binary payload. Deliberately NOT
+ * `File | Blob`: the registry resolver expands named types into structural
+ * literals, so emitting `File | Blob` freezes every member of BOTH the DOM and
+ * the `@types/node` declarations into the generated schema. Either lib adding a
+ * member (e.g. `Blob.textStream()` in @types/node >= 26.5) then makes the other
+ * one unassignable in consumer apps. These three members are stable across both
+ * and enough to reject a plain object. The method is typed loosely on purpose so
+ * signature drift between the two libs cannot break assignability either.
+ */
+export interface TuyauUploadable {
+  readonly size: number
+  readonly type: string
+  arrayBuffer: (...args: any[]) => any
+}
+
+/**
+ * Recursively replaces AdonisJS MultipartFile types with `TuyauUploadable`,
+ * which both a DOM `File`/`Blob` and a Node `File`/`Blob` satisfy.
  * MultipartFile is matched structurally via `{ isMultipartFile: true }` to avoid
  * importing from @adonisjs/bodyparser in client-side code.
+ *
+ * `vine.file()` infers to `MultipartFile | File | Blob`, and the conditional
+ * distributes over that union, so the `File`/`Blob` members have to collapse to
+ * `TuyauUploadable` too or they get structurally expanded right back. They are
+ * matched structurally as well rather than by name: the emitted type must not
+ * depend on `Blob` being declared by the consumer's lib.
  */
 type ReplaceMultipartFile<T> = T extends { isMultipartFile: true }
-  ? File | Blob
-  : T extends (infer U)[]
-    ? ReplaceMultipartFile<U>[]
-    : T extends object
-      ? { [K in keyof T]: ReplaceMultipartFile<T[K]> }
-      : T
+  ? TuyauUploadable
+  : T extends { arrayBuffer: (...args: any[]) => any; slice: (...args: any[]) => any }
+    ? TuyauUploadable
+    : T extends (infer U)[]
+      ? ReplaceMultipartFile<U>[]
+      : T extends object
+        ? { [K in keyof T]: ReplaceMultipartFile<T[K]> }
+        : T
 
 /**
  * Extract body from a validator type, excluding reserved properties.
  * Excludes 'query', 'params', 'headers', and 'cookies' as these are handled separately by AdonisJS.
- * Also replaces MultipartFile types with DOM File for client-side usage.
+ * Also replaces MultipartFile types with `TuyauUploadable` for client-side usage.
  */
 export type ExtractBody<T> = ReplaceMultipartFile<
   DistributiveOmit<T, 'query' | 'params' | 'headers' | 'cookies'>

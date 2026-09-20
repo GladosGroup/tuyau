@@ -46,7 +46,7 @@
     "@inertiajs/react": "^2.3.18",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.90.21",
-    "@tuyau/core": "workspace:*",
+    "@tuyau/core": "workspace:@gtuyau/core@*",
     "@tuyau/react-query": "workspace:*",
     "@vinejs/vine": "^4.3.0",
     "better-sqlite3": "^12.8.0",
